@@ -1,126 +1,187 @@
+<div align="center">
+
 # EventDrivenStore
 
-EventDrivenStore is a distributed system composed of independent bounded contexts, designed to demonstrate the design, implementation, and operation of a production type event driven architecture.
+### A production-shaped event-driven architecture for order transactions
 
-The system emphasizes service autonomy through deliberate domain partitioning, transactional integrity via relational databases, asynchronous communication, and reproducible infrastructure across multiple languages, frameworks, platforms, and runtimes, reflecting real-world distributed system design and engineering practices.
+EventDrivenStore is a distributed system built around independent bounded contexts, durable domain events, service-owned data, and failure-aware workflows. It follows an order from creation through reservation, payment, and a final business outcome.
 
+<p>
+  <img src="https://img.shields.io/badge/Architecture-Event--Driven-111827?style=for-the-badge" alt="Event-driven architecture">
+  <img src="https://img.shields.io/badge/Streaming-Apache%20Kafka-231F20?style=for-the-badge&logo=apachekafka&logoColor=white" alt="Apache Kafka">
+  <img src="https://img.shields.io/badge/Pattern-Saga%20Choreography-0F766E?style=for-the-badge" alt="Saga choreography">
+  <img src="https://img.shields.io/badge/Data-Database%20per%20Service-2563EB?style=for-the-badge" alt="Database per service">
+</p>
 
-## Components (Repositories)
+<p>
+  <a href="#the-system">The system</a> |
+  <a href="#architecture-visual">Architecture visual</a> |
+  <a href="#run-it-locally">Run it locally</a> |
+  <a href="#knowledge-base">Knowledge base</a>
+</p>
 
-| Component | Repo | Responsibility | Tech |
-|---|---|---|---|
-| Orders Service | [`eds-orders`](https://github.com/programmeralek/eds-orders) | Owns order creation and persistence, and emits immutable domain events | Java 25 / Spring Boot / MySQL |
-| Inventory Service | [`eds-inventory`](https://github.com/programmeralek/eds-inventory) | Owns inventory state and stock decisions, reacting to order-related domain events | .NET / C# / MSSQL |
-| Billing Service | [`eds-billing`](https://github.com/programmeralek/eds-billing) | Owns billing and payment workflows, reacting asynchronously to domain events | Node.js / Docker / MariaDB |
+</div>
 
+---
 
-## Overview of Distributed System Ownership
+## The system
 
+EventDrivenStore is a learning and engineering workspace for building distributed systems with the consequences left visible. An order is not treated as one synchronous function call. It becomes a sequence of facts that independent services can observe, persist, and react to.
 
-### 1.	Client → Gateway
-####	•	Synchronous HTTP boundary
-####	•	Routing resolved dynamically via Eureka
-### 2.	Gateway → Domain Services
-####	•	No hardcoded URLs
-####	•	Service discovery enables elasticity
-### 3.	Domain Services → Kafka
-####	•	Domain events are emitted, not commands
-####	•	Services never call each other directly
-### 4.	Kafka → Domain Services
-####	•	Services consume only what they own
-####	•	No shared state, no implicit dependencies
-### 5.	Each Service → Its Own Database
-####	•	Local transactions only
-####	•	State changes are private and protected
+The central question is:
 
-Each of these specifications can be validated through the following diagram:
+> **How do we turn a multi-step transaction into resilient progress without giving every service direct access to every other service?**
 
-![Overview](https://github.com/programmeralek/EventDrivenStore/blob/main/KnowledgeBase/EDS_Architecturial_Diagram.drawio.png)
+The answer explored here is an event-driven order lifecycle:
 
-## Design Patterns & Architectural Principles Demonstrated
+```text
+Create order
+    |
+    v
+Reserve inventory ---- failure ----> Order cancelled
+    |
+    v
+Authorize payment ---- failure ----> Order cancelled
+    |
+    v
+Order paid
+```
 
-This project intentionally demonstrates multiple distributed-systems design patterns, each implemented end-to-end in a realistic, production-style manner.
+Each transition is represented by a domain event. Services own their own state, publish what happened, and consume only the events relevant to their responsibilities.
 
-#### 1. Event-Droven Architecture
-#### 2. Saga Pattern (Choreography Based)
-#### 4. Database-per-Service
-#### 4. Outbox Pattern (Transactional Messaging)
-#### 5. Idempotent Consumers (ACID Principles)
-#### 6. Independent Microservices
+## Component map
 
+| Component | Responsibility | Technology |
+| --- | --- | --- |
+| Orders Service | Creates orders, owns order state, and emits immutable order events | Java 25, Spring Boot, MySQL |
+| Inventory Service | Owns stock state and reacts to order and reservation events | .NET, C#, MSSQL |
+| Billing Service | Owns billing and payment workflows and reacts asynchronously | Node.js, Docker, MariaDB |
+| Gateway | Provides the synchronous client boundary and routes to domain services | Spring Cloud Gateway |
+| Service discovery | Keeps service locations dynamic instead of hardcoded | Eureka |
+| Event backbone | Carries domain events between services | Apache Kafka |
 
-Each pattern is described using the STAR methodology (Situation, Task, Action, Result) to clearly articulate design intent and outcomes in a detailled manner in <a href="https://github.com/programmeralek/EventDrivenStore/blob/main/KnowledgeBase/STAR_specified_design_patterns.md" target="_blank">STAR_specified_design_patterns.md</a>
-## Deployment Strategy
+The service repositories are maintained independently:
 
-This project documents its deployment model as a first-class architectural concern.  
-Rather than hiding deployment decisions inside scripts or tooling, they are explicitly described and versioned alongside the codebase.
+- [eds-orders](https://github.com/programmeralek/eds-orders)
+- [eds-inventory](https://github.com/programmeralek/eds-inventory)
+- [eds-billing](https://github.com/programmeralek/eds-billing)
 
-The deployment strategy is broken down into the following sections:
+## Architecture visual
 
-### 1. Core Deployment Philosophy  
-Describes the foundational principles behind how services are deployed, why service autonomy is enforced, and why shared deployment units were intentionally avoided.  
-📄 [`core-deployment-philosophy.md`](KnowledgeBase/Deployment/1.coreDeploymentPhilosophy.md)
+The order transaction flow below shows both halves of the system: the event lifecycle on the left and the request, discovery, service, and database boundaries on the right.
 
-### 2. What Actually Gets Deployed  
-Clarifies what is deployed versus what is not, distinguishing between services, infrastructure dependencies, runtime artifacts, and execution boundaries.  
-📄 [`what-actually-gets-deployed.md`](KnowledgeBase/Deployment/2.whatActuallyGetsDeployed.md)
+<p align="center">
+  <img src="./KnowledgeBase/order-transaction-flow.png" alt="EventDrivenStore order transaction flow and service architecture" width="100%">
+</p>
 
-### 3. One Dockerfile per Service  
-Explains why each service owns its own Dockerfile, how this enables independent lifecycle management, and why this is critical for elasticity and failure isolation.  
-📄 [`one-dockerfile-per-service.md`](KnowledgeBase/Deployment/3.oneDockerfilePerService.md)
+<p align="center"><em>Order creation becomes a sequence of events, state transitions, and service-owned outcomes.</em></p>
 
-### 4. Environment Configuration Strategy  
-Details how environment-specific configuration is handled across local development, CI, and production without leaking infrastructure concerns into business logic.  
-📄 [`environment-configuration-strategy.md`](KnowledgeBase/Deployment/4.environmentConfigurationStrategy.md)
+## Design principles
 
-### 5. Service Startup and Dependency Order  
-Documents how services are allowed to start independently, why strict startup ordering is avoided, and how eventual consistency is embraced at runtime.  
-📄 [`service-startup-and-dependency-order.md`](KnowledgeBase/Deployment/5.serviceStartupAndDependencyOrder.md)
+| Principle | How the project demonstrates it |
+| --- | --- |
+| Event-driven integration | Services publish domain events instead of calling one another directly |
+| Saga choreography | Reservation and payment outcomes move the order forward or cancel it through events |
+| Database per service | Each service owns its schema, transactions, and persistence boundary |
+| Transactional outbox | State changes and outgoing event intent are coordinated for reliable publication |
+| Idempotent consumers | Reprocessing events should not create duplicate business effects |
+| Service autonomy | Services can evolve and scale independently behind explicit contracts |
+| Failure-aware workflows | Retries, recovery, and partial failure are treated as normal operating conditions |
 
-### 6. Scaling Strategy  
-Covers how services are expected to scale independently, what components are stateless versus stateful, and how the architecture supports horizontal scaling.  
-📄 [`scaling-strategy.md`](KnowledgeBase/Deployment/6.ScalingStrategy.md)
+The design patterns are described using the STAR format in [STAR_specified_design_patterns.md](./KnowledgeBase/STAR_specified_design_patterns.md).
 
-### 7. Failure and Recovery Behavior  
-Explains how the system behaves under partial failure, including consumer retries, idempotency, outbox recovery, and service restarts.  
-📄 [`failure-and-recovery-behavior.md`](KnowledgeBase/Deployment/7.failureAndRecoveryBehavior.md)
+## Ownership and event flow
 
-### 8. Deployment and CI/CD Readiness  
-Outlines how the system is prepared for automated pipelines, container-based delivery, and future cloud-native deployment without architectural rewrites.  
-📄 [`deployment-and-cicd-readiness.md`](KnowledgeBase/Deployment/8.deploymentAndCiCdReadiness.md)
+```mermaid
+flowchart LR
+    CLIENT[Client]
+    GATEWAY[Spring Cloud Gateway]
+    DISCOVERY[Eureka]
+    ORDERS[Orders service]
+    INVENTORY[Inventory service]
+    BILLING[Billing service]
+    KAFKA[(Kafka)]
+    ORDERSDB[(Orders DB)]
+    INVENTORYDB[(Inventory DB)]
+    BILLINGDB[(Billing DB)]
 
-## Data Structures & Persistence
+    CLIENT -->|HTTP| GATEWAY
+    GATEWAY --> DISCOVERY
+    GATEWAY --> ORDERS
+    GATEWAY --> INVENTORY
+    GATEWAY --> BILLING
+    ORDERS --> ORDERSDB
+    INVENTORY --> INVENTORYDB
+    BILLING --> BILLINGDB
+    ORDERS -->|OrderCreated| KAFKA
+    KAFKA -->|reservation events| INVENTORY
+    KAFKA -->|payment events| BILLING
+    KAFKA -->|outcome events| ORDERS
+```
 
-This project documents data ownership explicitly to reinforce database-per-service boundaries and to make the Saga workflow traceable across stores.
+## Documentation paths
 
-### Data Documentation
+### Deployment strategy
 
-1. [Data Ownership and Boundaries](KnowledgeBase/Data/1.data-ownership-and-boundaries.md) 
+The deployment documentation treats runtime boundaries as part of the architecture rather than an afterthought:
 
-2. [Orders Service Data Model (MySQL)](KnowledgeBase/Data/2.orders-data-model.md)
+1. [Core deployment philosophy](./KnowledgeBase/Deployment/1.coreDeploymentPhilosophy.md)
+2. [What actually gets deployed](./KnowledgeBase/Deployment/2.whatActuallyGetsDeployed.md)
+3. [One Dockerfile per service](./KnowledgeBase/Deployment/3.oneDockerfilePerService.md)
+4. [Environment configuration strategy](./KnowledgeBase/Deployment/4.environmentConfigurationStrategy.md)
+5. [Service startup and dependency order](./KnowledgeBase/Deployment/5.serviceStartupAndDependencyOrder.md)
+6. [Scaling strategy](./KnowledgeBase/Deployment/6.ScalingStrategy.md)
+7. [Failure and recovery behavior](./KnowledgeBase/Deployment/7.failureAndRecoveryBehavior.md)
+8. [Deployment and CI/CD readiness](./KnowledgeBase/Deployment/8.deploymentAndCiCdReadiness.md)
 
-3. [Inventory Service Data Model (MSSQL)](KnowledgeBase/Data/3.inventory-data-model.md)
+### Data and persistence
 
-4. [Billing Service Data Model (MariaDB)](KnowledgeBase/Data/4.billing-data-model.md)
+1. [Data ownership and boundaries](./KnowledgeBase/Data/1.data-ownership-and-boundaries.md)
+2. [Orders service data model](./KnowledgeBase/Data/2.orders-data-model.md)
+3. [Inventory service data model](./KnowledgeBase/Data/3.inventory-data-model.md)
+4. [Billing service data model](./KnowledgeBase/Data/4.billing-data-model.md)
+5. [Cross-service data boundaries](./KnowledgeBase/Data/5.cross-service-data-boundaries.md)
+6. [Event payloads and persistence](./KnowledgeBase/Data/6.event-payloads-and-persistence.md)
 
-5. [Cross-Cutting Persistence Tables (Outbox + Idempotency)](KnowledgeBase/Data/5.cross-cutting-tables-outbox-idempotency.md)
+### Local setup
 
-6. [Migrations and Schema History Strategy](KnowledgeBase/Data/6.migrations-and-schema-history.md)
+1. [Prerequisites](./KnowledgeBase/LocalSetupGuide/1.prerequisites.md)
+2. [Infrastructure bootstrapping](./KnowledgeBase/LocalSetupGuide/2.infrastructure-bootstrapping.md)
+3. [Service startup order](./KnowledgeBase/LocalSetupGuide/3.service-startup-order.md)
+4. [Local testing and verification](./KnowledgeBase/LocalSetupGuide/4.local-testing-and-verification.md)
 
-## Local Setup Guide
+## Run it locally
 
-This repo includes a step-by-step guide to run the system locally and verify the full Saga path through Kafka and the service-owned databases.
+The repository's local setup guide is the source of truth for environment-specific commands. The short version is:
 
-## Local Setup Guide
+```bash
+git clone git@github.com:L8TESTPR0JECTS/EventDrivenStore.git
+cd EventDrivenStore
+```
 
-1. [Prerequisites](KnowledgeBase/LocalSetupGuide/1.prerequisites.md)
+Then follow [Prerequisites](./KnowledgeBase/LocalSetupGuide/1.prerequisites.md), [Infrastructure bootstrapping](./KnowledgeBase/LocalSetupGuide/2.infrastructure-bootstrapping.md), and [Service startup order](./KnowledgeBase/LocalSetupGuide/3.service-startup-order.md).
 
-2. [Infrastructure Startup](KnowledgeBase/LocalSetupGuide/2.infrastructure-startup.md)
+## Repository map
 
-3. [Service Startup](KnowledgeBase/LocalSetupGuide/3.service-startup.md)
+```text
+EventDrivenStore/
+|- orders-service/       Order lifecycle and persistence
+|- inventory-service/    Reservation and stock state
+|- billing-service/      Payment and billing workflow
+|- infrastructure/       Shared runtime and deployment building blocks
+|- KnowledgeBase/
+|  |- Data/               Ownership, schemas, and event persistence
+|  |- Deployment/         Runtime, scaling, and recovery decisions
+|  |- LocalSetupGuide/    Local startup and verification flow
+|  `- order-transaction-flow.png
+`- README.md              Product and architecture entry point
+```
 
-4. [Smoke Tests and Verification](KnowledgeBase/LocalSetupGuide/4.smoke-tests-and-verification.md)
+## Project status
 
-5. [Troubleshooting](KnowledgeBase/LocalSetupGuide/5.troubleshooting.md)
+EventDrivenStore is an evolving distributed-systems workspace. The architecture, service contracts, deployment notes, and data documentation are versioned together so that implementation decisions can be read alongside the reasoning behind them.
 
+## License
+
+No open-source license has been selected yet. Treat this repository as a private learning and engineering workspace unless a license is added.
 
