@@ -1,6 +1,6 @@
 # EventDrivenStore
 
-EventDrivenStore is a polyglot, distributed system composed of independent bounded contexts, designed to demonstrate the design, implementation, and operation of a production type event driven architecture.
+EventDrivenStore is a distributed system composed of independent bounded contexts, designed to demonstrate the design, implementation, and operation of a production type event driven architecture.
 
 The system emphasizes service autonomy through deliberate domain partitioning, transactional integrity via relational databases, asynchronous communication, and reproducible infrastructure across multiple languages, frameworks, platforms, and runtimes, reflecting real-world distributed system design and engineering practices.
 
@@ -46,7 +46,7 @@ This project intentionally demonstrates multiple distributed-systems design patt
 #### 4. Database-per-Service
 #### 4. Outbox Pattern (Transactional Messaging)
 #### 5. Idempotent Consumers (ACID Principles)
-#### 6. Polyglot Microservices
+#### 6. Independent Microservices
 
 
 Each pattern is described using the STAR methodology (Situation, Task, Action, Result) to clearly articulate design intent and outcomes in a detailled manner in <a href="https://github.com/programmeralek/EventDrivenStore/blob/main/KnowledgeBase/STAR_specified_design_patterns.md" target="_blank">STAR_specified_design_patterns.md</a>
@@ -122,6 +122,5 @@ This repo includes a step-by-step guide to run the system locally and verify the
 4. [Smoke Tests and Verification](KnowledgeBase/LocalSetupGuide/4.smoke-tests-and-verification.md)
 
 5. [Troubleshooting](KnowledgeBase/LocalSetupGuide/5.troubleshooting.md)
-
 
 

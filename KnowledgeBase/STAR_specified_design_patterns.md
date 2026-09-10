@@ -114,7 +114,7 @@ Ensure safe reprocessing of events without corrupting state.
 	•	No duplicated side effects
 	•	Deterministic system behavior under failure and restart scenarios
 
-### 6. Polyglot Microservices
+### 6. Independent Microservices
 
 #### Situation
 
